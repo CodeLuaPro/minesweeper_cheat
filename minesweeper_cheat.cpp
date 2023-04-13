@@ -6,6 +6,7 @@
 #include <tlhelp32.h>
 #include <iostream>
 #include <vector>
+#pragma comment( lib, "psapi" )
 
 DWORD GetProcID(const wchar_t* procName)
 {
@@ -30,6 +31,7 @@ DWORD GetProcID(const wchar_t* procName)
     CloseHandle(hSnap);
     return procId;
 }
+
 
 uintptr_t GetModuleBaseAddress(DWORD procId, const wchar_t* modName)
 {
@@ -57,6 +59,8 @@ uintptr_t GetModuleBaseAddress(DWORD procId, const wchar_t* modName)
     return moduleBaseAddress;
 }
 
+
+/*
 uintptr_t getAddress(std::vector<unsigned int> offsets, uintptr_t ptr, HANDLE hProc)
 {
     uintptr_t addr = ptr;
@@ -67,7 +71,7 @@ uintptr_t getAddress(std::vector<unsigned int> offsets, uintptr_t ptr, HANDLE hP
     }
     return addr;
 }
-
+*/
 void PatchEx(BYTE* dest, BYTE* src, unsigned int size, HANDLE hProc)
 {
     DWORD oldprotect;
@@ -84,7 +88,8 @@ int main()
 
     HANDLE hProc = 0;
 
-    uintptr_t modBaseAddr = 0, timeAddr = 0;
+    unsigned int* timeAddr = 0;
+    uintptr_t modBaseAddr = 0;
 
     DWORD procId = GetProcID(gameName);
 
@@ -92,15 +97,16 @@ int main()
     if (procId)
     {
         hProc = OpenProcess(PROCESS_ALL_ACCESS, 0, procId);
-        uintptr_t modBaseAddr = GetModuleBaseAddress(procId, gameName);
-        uintptr_t timeAddr = getAddress({ 0x2FE0 }, modBaseAddr, hProc);
+        modBaseAddr = GetModuleBaseAddress(procId, gameName);
+        timeAddr = reinterpret_cast<unsigned int*>(modBaseAddr + 0x2FE0);
+        
 
-        PatchEx((BYTE*)0x01002FE0, (BYTE*)"\xC2", 7, hProc);
+        PatchEx((BYTE*)timeAddr, (BYTE*)"\xC2", 7, hProc);
         //WriteProcessMemory(hProc, (BYTE*)timeAddr, (BYTE*)"\xC2", 7, nullptr);
 
         std::cout << "Minesweeper patched" << std::endl;
-        std::cout << modBaseAddr;
-
+        std::cout << timeAddr;
+        
     }
     else
     {
